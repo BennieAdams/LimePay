@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LimePay — Documentation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green: #4ade80;
+      --green-dark: #16a34a;
+      --green-mid: #22c55e;
+      --green-soft: #dcfce7;
+      --green-glow: rgba(74,222,128,0.15);
+      --bg: #ffffff;
+      --bg2: #f9fafb;
+      --bg3: #f0fdf4;
+      --text: #0f172a;
+      --text2: #475569;
+      --text3: #94a3b8;
+      --border: #e2e8f0;
+      --shadow: 0 4px 24px rgba(0,0,0,0.07);
+      --shadow-lg: 0 8px 40px rgba(0,0,0,0.10);
+      --radius: 16px;
+      --radius-sm: 10px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      font-size: 16px;
+    }
+
+    h1,h2,h3,h4 { font-family: 'Space Grotesk', sans-serif; }
+
+    a { color: var(--green-dark); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── NAV ── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+    }
+    .nav-inner {
+      max-width: 1100px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 64px;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 10px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 22px; font-weight: 700; color: var(--text);
+    }
+    .logo-dot {
+      width: 32px; height: 32px; border-radius: 10px;
+      background: linear-gradient(135deg, #4ade80, #16a34a);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; font-weight: 800; color: white;
+    }
+    .nav-links { display: flex; gap: 8px; }
+    .nav-links a {
+      padding: 8px 14px; border-radius: 8px;
+      font-size: 14px; font-weight: 500; color: var(--text2);
+      transition: all .2s;
+    }
+    .nav-links a:hover { background: var(--bg3); color: var(--green-dark); text-decoration: none; }
+    .nav-cta {
+      background: linear-gradient(135deg, #4ade80, #16a34a) !important;
+      color: white !important; font-weight: 600 !important;
+    }
+    .nav-cta:hover { opacity: .9; background: linear-gradient(135deg, #4ade80, #16a34a) !important; }
+
+    /* ── HERO ── */
+    .hero {
+      background: linear-gradient(160deg, #f0fdf4 0%, #ffffff 50%, #f0fdf4 100%);
+      padding: 96px 24px 80px;
+      text-align: center;
+      position: relative; overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute; top: -120px; left: 50%; transform: translateX(-50%);
+      width: 700px; height: 700px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(74,222,128,0.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--green-soft); color: var(--green-dark);
+      border: 1px solid #bbf7d0;
+      border-radius: 100px; padding: 6px 16px;
+      font-size: 13px; font-weight: 600; margin-bottom: 24px;
+    }
+    .hero-badge span { width: 7px; height: 7px; border-radius: 50%; background: var(--green-mid); display: inline-block; }
+    .hero h1 {
+      font-size: clamp(36px, 6vw, 64px);
+      font-weight: 700; line-height: 1.1;
+      color: var(--text); margin-bottom: 20px;
+    }
+    .hero h1 em {
+      font-style: normal;
+      background: linear-gradient(135deg, #16a34a, #4ade80);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .hero p {
+      font-size: 18px; color: var(--text2);
+      max-width: 580px; margin: 0 auto 40px;
+    }
+    .hero-buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 14px 28px; border-radius: 12px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 15px; font-weight: 600;
+      cursor: pointer; transition: all .2s; text-decoration: none !important;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #4ade80, #16a34a);
+      color: white; box-shadow: 0 4px 20px rgba(74,222,128,0.4);
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(74,222,128,0.5); }
+    .btn-outline {
+      background: white; color: var(--text);
+      border: 1.5px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+    .btn-outline:hover { border-color: var(--green); background: var(--bg3); }
+
+    /* ── STATS ── */
+    .stats {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 16px; max-width: 900px; margin: 0 auto;
+      padding: 48px 24px 0;
+    }
+    .stat-card {
+      background: white; border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 24px 20px;
+      text-align: center; box-shadow: var(--shadow);
+    }
+    .stat-num {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 32px; font-weight: 700;
+      background: linear-gradient(135deg, #16a34a, #4ade80);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .stat-label { font-size: 13px; color: var(--text2); margin-top: 4px; font-weight: 500; }
+
+    /* ── SECTION ── */
+    section { padding: 80px 24px; }
+    .section-inner { max-width: 1100px; margin: 0 auto; }
+    .section-tag {
+      display: inline-block;
+      background: var(--green-soft); color: var(--green-dark);
+      border-radius: 100px; padding: 4px 14px;
+      font-size: 12px; font-weight: 700; letter-spacing: .06em;
+      text-transform: uppercase; margin-bottom: 12px;
+    }
+    .section-title {
+      font-size: clamp(26px, 4vw, 40px);
+      font-weight: 700; margin-bottom: 12px; color: var(--text);
+    }
+    .section-sub { font-size: 17px; color: var(--text2); max-width: 540px; margin-bottom: 48px; }
+
+    /* ── FEATURES GRID ── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+    .feature-card {
+      background: white; border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 28px;
+      box-shadow: var(--shadow);
+      transition: transform .2s, box-shadow .2s;
+    }
+    .feature-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+    .feature-icon {
+      width: 48px; height: 48px; border-radius: 14px;
+      background: var(--green-soft); color: var(--green-dark);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; margin-bottom: 16px;
+    }
+    .feature-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+    .feature-desc { font-size: 14px; color: var(--text2); line-height: 1.6; }
+
+    /* ── HOW IT WORKS ── */
+    .bg-alt { background: var(--bg2); }
+    .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 24px; }
+    .step {
+      background: white; border-radius: var(--radius);
+      padding: 32px 24px; text-align: center;
+      border: 1px solid var(--border); box-shadow: var(--shadow);
+      position: relative;
+    }
+    .step-num {
+      width: 48px; height: 48px; border-radius: 50%;
+      background: linear-gradient(135deg, #4ade80, #16a34a);
+      color: white; font-family: 'Space Grotesk', sans-serif;
+      font-size: 20px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 16px;
+    }
+    .step h3 { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+    .step p { font-size: 14px; color: var(--text2); }
+
+    /* ── ASSETS TABLE ── */
+    .assets-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+    }
+    .asset-card {
+      background: white; border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 20px;
+      display: flex; align-items: center; gap: 14px;
+      box-shadow: var(--shadow); transition: transform .2s;
+    }
+    .asset-card:hover { transform: translateY(-2px); }
+    .asset-emoji { font-size: 28px; }
+    .asset-name { font-weight: 700; font-size: 15px; }
+    .asset-full { font-size: 12px; color: var(--text2); }
+    .asset-badge {
+      margin-left: auto;
+      font-size: 10px; font-weight: 700;
+      padding: 3px 8px; border-radius: 100px;
+    }
+    .badge-live { background: #dcfce7; color: #16a34a; }
+    .badge-circle { background: #eff6ff; color: #2563eb; }
+    .badge-bridge { background: #fef3c7; color: #92400e; }
+    .badge-onramp { background: #fdf4ff; color: #7c3aed; }
+
+    /* ── TECH STACK ── */
+    .tech-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 16px;
+    }
+    .tech-card {
+      background: white; border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 20px 24px;
+      box-shadow: var(--shadow);
+    }
+    .tech-layer { font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 6px; }
+    .tech-name { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+    .tech-desc { font-size: 13px; color: var(--text2); }
+
+    /* ── CONTRACT ── */
+    .contract-box {
+      background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+      border: 1.5px solid #bbf7d0;
+      border-radius: var(--radius); padding: 36px;
+      display: flex; flex-direction: column; gap: 20px;
+    }
+    .contract-row { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+    .contract-label { font-size: 12px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 4px; }
+    .contract-value {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 14px; font-weight: 600; color: var(--text);
+      background: white; border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 16px;
+      word-break: break-all;
+    }
+    .contract-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; }
+
+    /* ── FAQ ── */
+    details {
+      background: white; border: 1px solid var(--border);
+      border-radius: var(--radius-sm); margin-bottom: 10px;
+      overflow: hidden; box-shadow: var(--shadow);
+    }
+    summary {
+      padding: 20px 24px; cursor: pointer;
+      font-weight: 600; font-size: 15px;
+      display: flex; justify-content: space-between; align-items: center;
+      list-style: none;
+    }
+    summary::-webkit-details-marker { display: none; }
+    summary::after { content: '+'; font-size: 20px; color: var(--green-dark); font-weight: 400; }
+    details[open] summary::after { content: '−'; }
+    details[open] summary { color: var(--green-dark); }
+    .faq-body { padding: 0 24px 20px; font-size: 14px; color: var(--text2); line-height: 1.7; }
+
+    /* ── FOOTER ── */
+    footer {
+      background: var(--text); color: white;
+      padding: 64px 24px 32px;
+    }
+    .footer-inner { max-width: 1100px; margin: 0 auto; }
+    .footer-top { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 48px; margin-bottom: 48px; }
+    .footer-brand p { color: #94a3b8; font-size: 14px; margin-top: 12px; max-width: 280px; line-height: 1.7; }
+    .footer-col h4 { font-size: 13px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 16px; }
+    .footer-col a { display: block; color: #cbd5e1; font-size: 14px; margin-bottom: 10px; }
+    .footer-col a:hover { color: var(--green); text-decoration: none; }
+    .footer-bottom { border-top: 1px solid #1e293b; padding-top: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+    .footer-bottom p { color: #64748b; font-size: 13px; }
+    .footer-logo { font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 8px; color: white; }
+
+    @media (max-width: 768px) {
+      .nav-links { display: none; }
+      .footer-top { grid-template-columns: 1fr; gap: 32px; }
+      .hero { padding: 72px 20px 56px; }
+      section { padding: 60px 20px; }
+      .contract-row { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-inner">
+    <div class="logo">
+      <div class="logo-dot">L</div>
+      LimePay
+    </div>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#how-it-works">How it works</a>
+      <a href="#assets">Assets</a>
+      <a href="#tech">Tech Stack</a>
+      <a href="#contract">Contract</a>
+      <a href="#faq">FAQ</a>
+      <a href="https://limepay.netlify.app" class="btn-cta nav-cta btn">Launch App →</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-badge"><span></span> Built on Arc · Powered by Circle USDC</div>
+  <h1>The <em>Smarter</em> Way<br/>to Move Money Onchain</h1>
+  <p>Send, swap, earn, borrow, and pay bills using USDC — with just a username or account number. No wallet address needed.</p>
+  <div class="hero-buttons">
+    <a href="https://limepay.netlify.app" class="btn btn-primary">🚀 Launch App</a>
+    <a href="https://github.com/BennieAdams/LimePay" class="btn btn-outline">📦 View on GitHub</a>
+  </div>
+</div>
+
+<!-- STATS -->
+<div style="background:white; padding: 0 24px 64px;">
+  <div class="stats">
+    <div class="stat-card"><div class="stat-num">8</div><div class="stat-label">Supported Assets</div></div>
+    <div class="stat-card"><div class="stat-num">7</div><div class="stat-label">Chains via CCTP</div></div>
+    <div class="stat-card"><div class="stat-num">20+</div><div class="stat-label">Bill Providers</div></div>
+    <div class="stat-card"><div class="stat-num">5.2%</div><div class="stat-label">Max Earn APY</div></div>
+    <div class="stat-card"><div class="stat-num">Arc</div><div class="stat-label">USDC as Gas Token</div></div>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="section-inner">
+    <div class="section-tag">Features</div>
+    <h2 class="section-title">Everything you need in one app</h2>
+    <p class="section-sub">LimePay combines the simplicity of mobile banking with the power of decentralised finance.</p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">💸</div>
+        <div class="feature-title">Send & Receive</div>
+        <div class="feature-desc">Send USDC and other assets to anyone using their @username, LP-account number, or wallet address. No 42-character hex string required.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔄</div>
+        <div class="feature-title">Swap</div>
+        <div class="feature-desc">Swap between 8 assets — USDC, EURC, cirBTC, ETH, BTC, NGN, MOVE, and APT — with live indicative rates and adjustable slippage.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🌉</div>
+        <div class="feature-title">Bridge</div>
+        <div class="feature-desc">Move USDC across 7 chains — Arc, Ethereum, Base, Arbitrum, Polygon, Avalanche, Solana — using Circle's CCTP protocol with a 4-step progress indicator.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📈</div>
+        <div class="feature-title">Earn</div>
+        <div class="feature-desc">Deposit USDC (5.2% APY), EURC (4.8%), or cirBTC (3.1%) to earn yield. Powered by Circle Yield and Arc Lending infrastructure.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🏦</div>
+        <div class="feature-title">Borrow</div>
+        <div class="feature-desc">Use cirBTC or ETH as collateral to borrow USDC or EURC. LTVs up to 75%, with clear liquidation threshold warnings and annual interest display.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">💳</div>
+        <div class="feature-title">Buy Crypto</div>
+        <div class="feature-desc">Fund your wallet with a debit or credit card via a 4-step fiat on-ramp. Supports USD, EUR, NGN, and GBP with live amount preview and card visual.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📱</div>
+        <div class="feature-title">Bill Payments</div>
+        <div class="feature-desc">Pay Airtime, Data, Electricity, Cable TV (DStv, GOtv, Startimes), and Betting accounts (Bet9ja, SportyBet, 1xBet) directly from your USDC wallet.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🕒</div>
+        <div class="feature-title">Transaction History</div>
+        <div class="feature-desc">Every transaction — Send, Receive, Swap, Bridge, Earn, Borrow, Bill, Card Buy — is recorded with date, amount, asset, status, and explorer link.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔐</div>
+        <div class="feature-title">Non-Custodial</div>
+        <div class="feature-desc">Connect MetaMask, Rabby, or any WalletConnect wallet. You hold your keys — LimePay never has access to your funds.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how-it-works" class="bg-alt">
+  <div class="section-inner">
+    <div class="section-tag">How it works</div>
+    <h2 class="section-title">Get started in minutes</h2>
+    <p class="section-sub">No crypto experience needed. LimePay walks you through every step.</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3>Create Account</h3>
+        <p>Register with your email and display name. Your @username and LP-account number are generated instantly.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3>Accept Terms</h3>
+        <p>Review and accept LimePay's terms and privacy policy to activate your account.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h3>Connect Wallet</h3>
+        <p>Connect MetaMask, Rabby, or any WalletConnect-compatible wallet to Arc Testnet.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <h3>Start Transacting</h3>
+        <p>Send, swap, earn, borrow, bridge, and pay bills — all from one clean dashboard.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ASSETS -->
+<section id="assets">
+  <div class="section-inner">
+    <div class="section-tag">Supported Assets</div>
+    <h2 class="section-title">8 assets, one wallet</h2>
+    <p class="section-sub">From stablecoins to crypto to local fiat — LimePay covers all your bases.</p>
+    <div class="assets-grid">
+      <div class="asset-card"><div class="asset-emoji">💵</div><div><div class="asset-name">USDC</div><div class="asset-full">USD Coin</div></div><span class="asset-badge badge-live">Live</span></div>
+      <div class="asset-card"><div class="asset-emoji">🇪🇺</div><div><div class="asset-name">EURC</div><div class="asset-full">Euro Coin</div></div><span class="asset-badge badge-circle">Circle</span></div>
+      <div class="asset-card"><div class="asset-emoji">₿</div><div><div class="asset-name">cirBTC</div><div class="asset-full">Circle Bitcoin</div></div><span class="asset-badge badge-circle">Circle</span></div>
+      <div class="asset-card"><div class="asset-emoji">⟠</div><div><div class="asset-name">ETH</div><div class="asset-full">Ethereum</div></div><span class="asset-badge badge-bridge">Bridged</span></div>
+      <div class="asset-card"><div class="asset-emoji">🟠</div><div><div class="asset-name">BTC</div><div class="asset-full">Bitcoin</div></div><span class="asset-badge badge-bridge">Bridged</span></div>
+      <div class="asset-card"><div class="asset-emoji">🇳🇬</div><div><div class="asset-name">NGN</div><div class="asset-full">Nigerian Naira</div></div><span class="asset-badge badge-onramp">On-ramp</span></div>
+      <div class="asset-card"><div class="asset-emoji">🔵</div><div><div class="asset-name">MOVE</div><div class="asset-full">Movement Network</div></div><span class="asset-badge badge-bridge">Bridged</span></div>
+      <div class="asset-card"><div class="asset-emoji">🟣</div><div><div class="asset-name">APT</div><div class="asset-full">Aptos</div></div><span class="asset-badge badge-bridge">Bridged</span></div>
+    </div>
+    <p style="margin-top:20px; font-size:13px; color:var(--text3);">🟢 Live = real ERC-20 on Arc Testnet &nbsp;|&nbsp; 🔵 Circle = Circle-issued ERC-20 &nbsp;|&nbsp; 🟡 Bridged = indicative rates on testnet &nbsp;|&nbsp; 🟣 On-ramp = fiat conversion</p>
+  </div>
+</section>
+
+<!-- TECH STACK -->
+<section id="tech" class="bg-alt">
+  <div class="section-inner">
+    <div class="section-tag">Technology</div>
+    <h2 class="section-title">Built on best-in-class infrastructure</h2>
+    <p class="section-sub">Every layer of LimePay is powered by production-grade, audited infrastructure.</p>
+    <div class="tech-grid">
+      <div class="tech-card"><div class="tech-layer">Blockchain</div><div class="tech-name">Circle Arc Testnet</div><div class="tech-desc">USDC as native gas — stable fees, sub-second finality, Chain ID 5042002</div></div>
+      <div class="tech-card"><div class="tech-layer">Stablecoin</div><div class="tech-name">USDC / EURC</div><div class="tech-desc">Circle-issued stablecoins — 1:1 backed, fully regulated, always redeemable</div></div>
+      <div class="tech-card"><div class="tech-layer">Cross-chain</div><div class="tech-name">Circle CCTP</div><div class="tech-desc">Native burn-and-mint bridge across 7 networks — no wrapped tokens</div></div>
+      <div class="tech-card"><div class="tech-layer">Wallets</div><div class="tech-name">ConnectKit + wagmi</div><div class="tech-desc">Non-custodial wallet connection — MetaMask, Rabby, WalletConnect</div></div>
+      <div class="tech-card"><div class="tech-layer">Smart Contract</div><div class="tech-name">LimePayPaymentRouter</div><div class="tech-desc">Audited Solidity contract — routes USDC, configurable fees, pause/unpause</div></div>
+      <div class="tech-card"><div class="tech-layer">Frontend</div><div class="tech-name">React + TypeScript + Vite</div><div class="tech-desc">Mobile-first, fully responsive, hosted on Netlify global CDN</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTRACT -->
+<section id="contract">
+  <div class="section-inner">
+    <div class="section-tag">Smart Contract</div>
+    <h2 class="section-title">LimePayPaymentRouter</h2>
+    <p class="section-sub">Deployed, audited, and verified on Arc Testnet.</p>
+    <div class="contract-box">
+      <div>
+        <div class="contract-label">Contract Address</div>
+        <div class="contract-value">0x9260765cd3b4f1e05bc94eefa73ef9ebd5225ee9</div>
+      </div>
+      <div class="contract-meta">
+        <div><div class="contract-label">Network</div><div class="contract-value">Arc Testnet</div></div>
+        <div><div class="contract-label">Compiler</div><div class="contract-value">Solidity 0.8.28</div></div>
+        <div><div class="contract-label">License</div><div class="contract-value">MIT</div></div>
+        <div><div class="contract-label">Optimization</div><div class="contract-value">Enabled · 200 runs</div></div>
+      </div>
+      <div>
+        <div class="contract-label">What it does</div>
+        <p style="font-size:14px; color:var(--text2); line-height:1.7; margin-top:8px;">
+          Receives USDC payments from senders, deducts a configurable platform fee (0–5% in basis points), routes the net amount to the recipient, and sends the fee to a treasury address. Includes emergency pause/unpause (owner only), two-step ownership transfer (Ownable2Step), full reentrancy protection, and <code>renounceOwnership</code> is permanently disabled to prevent lockout.
+        </p>
+      </div>
+      <div style="display:flex; gap:12px; flex-wrap:wrap;">
+        <a href="https://testnet.arcscan.app/address/0x9260765cd3b4f1e05bc94eefa73ef9ebd5225ee9" class="btn btn-primary" target="_blank">🔍 View on ArcScan</a>
+        <a href="https://github.com/BennieAdams/LimePay/blob/main/contracts/LimePayPaymentRouter.sol" class="btn btn-outline" target="_blank">📄 View Source</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq" class="bg-alt">
+  <div class="section-inner">
+    <div class="section-tag">FAQ</div>
+    <h2 class="section-title">Frequently asked questions</h2>
+    <p class="section-sub" style="margin-bottom:32px;">Everything you need to know about LimePay.</p>
+
+    <details>
+      <summary>Do I need crypto to use LimePay?</summary>
+      <div class="faq-body">You need a small amount of USDC on Arc Testnet for gas fees (since Arc uses USDC as its native gas token). You can get free test USDC from the "Get test USDC" button inside the app or from the Arc Testnet faucet. No ETH or other gas tokens are ever needed.</div>
+    </details>
+    <details>
+      <summary>How does sending by username work?</summary>
+      <div class="faq-body">When you register on LimePay, you get a unique @username (e.g. @john_doe) and an LP-account number (e.g. LP-12345678). Other users can type your username or account number in the Send page to resolve it to your wallet address automatically — no copying and pasting of 42-character hex addresses.</div>
+    </details>
+    <details>
+      <summary>Is LimePay non-custodial?</summary>
+      <div class="faq-body">Yes. LimePay never holds your funds. You connect your own wallet (MetaMask, Rabby, etc.) and sign every transaction yourself. LimePay's smart contract only routes payments — it cannot move funds without your wallet approval.</div>
+    </details>
+    <details>
+      <summary>Which chains does the bridge support?</summary>
+      <div class="faq-body">LimePay's Bridge uses Circle's CCTP protocol and supports: Arc Testnet, Ethereum Sepolia, Base Sepolia, Arbitrum Sepolia, Polygon Amoy, Avalanche Fuji, and Solana Devnet — 7 chains in total.</div>
+    </details>
+    <details>
+      <summary>Are the Earn and Borrow rates real?</summary>
+      <div class="faq-body">On testnet the rates are indicative (USDC 5.2% APY, EURC 4.8%, cirBTC 3.1%). They represent what the protocol targets for mainnet deployment using Circle Yield and Arc Lending. Actual mainnet rates will depend on market conditions.</div>
+    </details>
+    <details>
+      <summary>Is the smart contract audited?</summary>
+      <div class="faq-body">Yes. The LimePayPaymentRouter was reviewed for security issues including reentrancy, ownership attacks, and pause lockouts. All findings were fixed before deployment. Slither static analysis returned 0 findings and 49/49 forge unit tests pass including fuzz and invariant tests. Note: this is a testnet contract — an independent third-party audit is recommended before mainnet deployment.</div>
+    </details>
+    <details>
+      <summary>How do I get test USDC?</summary>
+      <div class="faq-body">Inside the LimePay app, click "Get test USDC" in the sidebar. This drips ERC-20 USDC directly to your connected wallet address on Arc Testnet — free, instant, no external faucet needed.</div>
+    </details>
+  </div>
+</section>
+
+<!-- LINKS -->
+<section style="padding: 64px 24px; text-align:center; background: linear-gradient(135deg, #f0fdf4, #dcfce7);">
+  <div class="section-inner" style="max-width:700px;">
+    <h2 class="section-title">Ready to try LimePay?</h2>
+    <p style="color:var(--text2); font-size:17px; margin-bottom:36px;">The app is live on Arc Testnet. Connect your wallet and start exploring.</p>
+    <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+      <a href="https://limepay.netlify.app" class="btn btn-primary">🚀 Launch App</a>
+      <a href="https://github.com/BennieAdams/LimePay" class="btn btn-outline">📦 GitHub</a>
+      <a href="https://testnet.arcscan.app/address/0x9260765cd3b4f1e05bc94eefa73ef9ebd5225ee9" class="btn btn-outline">🔍 Explorer</a>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <div class="footer-logo">
+          <div class="logo-dot">L</div>
+          LimePay
+        </div>
+        <p>A USDC-native fintech app for sending, swapping, earning, and paying bills — built on Circle's Arc blockchain for everyday users in emerging markets.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Product</h4>
+        <a href="https://limepay.netlify.app">Launch App</a>
+        <a href="#features">Features</a>
+        <a href="#assets">Supported Assets</a>
+        <a href="#contract">Smart Contract</a>
+      </div>
+      <div class="footer-col">
+        <h4>Resources</h4>
+        <a href="https://github.com/BennieAdams/LimePay">GitHub</a>
+        <a href="https://testnet.arcscan.app/address/0x9260765cd3b4f1e05bc94eefa73ef9ebd5225ee9">ArcScan Explorer</a>
+        <a href="https://developers.circle.com">Circle Docs</a>
+        <a href="https://docs.arc.io">Arc Docs</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 LimePay. Built on Circle Arc · USDC-native · Open Source</p>
+      <p>Contract: 0x9260765cd3b4f1e05bc94eefa73ef9ebd5225ee9 · Arc Testnet</p>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

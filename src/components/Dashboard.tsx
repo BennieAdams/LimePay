@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import {
   ArrowUpRight, ArrowDownLeft, RefreshCw, Plus, Eye, EyeOff,
@@ -10,6 +10,7 @@ import { erc20Abi } from 'viem'
 import { getUsdc } from '@/onchain-facts'
 import { Amount, usdcDecimalsFor } from '@/onchain-money'
 import { ASSETS, USD_RATES, SOURCE_BADGE } from '../assets-config'
+import { getAllBalances } from '../balance-store'
 import type { Page } from '../App'
 
 const ARC_CHAIN_ID = 5042002
@@ -35,6 +36,14 @@ export default function Dashboard({ navigate, displayName }: DashboardProps) {
   const { address, isConnected } = useAccount()
   const [balanceHidden, setBalanceHidden] = useState(false)
   const [showAll, setShowAll] = useState(false)
+  const [localBalances, setLocalBalances] = useState(getAllBalances)
+
+  // Refresh local balances when window regains focus (user returns from another tab)
+  const refreshLocal = useCallback(() => setLocalBalances(getAllBalances()), [])
+  useEffect(() => {
+    window.addEventListener('focus', refreshLocal)
+    return () => window.removeEventListener('focus', refreshLocal)
+  }, [refreshLocal])
 
   const usdcFact = getUsdc(ARC_CHAIN_ID)
 
@@ -51,18 +60,33 @@ export default function Dashboard({ navigate, displayName }: DashboardProps) {
     ? Amount.fromRaw(usdcRaw, usdcDecimalsFor(ARC_CHAIN_ID)).toFixed(2)
     : '0.00'
 
-  // Build display rows: USDC live, rest indicative
-  const tokenRows = ASSETS.map((a) => ({
-    ...a,
-    balance: a.symbol === 'USDC' ? (usdcLoading ? '…' : usdcBalance) : '0.00',
-    usdValue: a.symbol === 'USDC'
-      ? (usdcLoading ? '…' : `$${usdcBalance}`)
-      : '$0.00',
-    usdRate: USD_RATES[a.symbol] ?? 0,
-  }))
+  // Build display rows: USDC live from chain, rest from local balance store
+  const tokenRows = ASSETS.map((a) => {
+    if (a.symbol === 'USDC') {
+      return {
+        ...a,
+        balance: usdcLoading ? '…' : usdcBalance,
+        usdValue: usdcLoading ? '…' : `$${usdcBalance}`,
+        usdRate: 1,
+      }
+    }
+    const localBal = localBalances[a.symbol as keyof typeof localBalances] ?? 0
+    const rate = USD_RATES[a.symbol] ?? 0
+    const usdVal = (localBal * rate).toFixed(2)
+    return {
+      ...a,
+      balance: localBal > 0 ? localBal.toFixed(localBal < 0.01 ? 8 : 4) : '0.00',
+      usdValue: `$${usdVal}`,
+      usdRate: rate,
+    }
+  })
 
   const visible = showAll ? tokenRows : tokenRows.slice(0, 5)
-  const totalUsd = usdcLoading ? '…' : usdcBalance
+  const usdcNum = parseFloat(usdcBalance) || 0
+  const localUsdTotal = Object.entries(localBalances).reduce((sum, [sym, bal]) => {
+    return sum + (bal * (USD_RATES[sym] ?? 0))
+  }, 0)
+  const totalUsd = usdcLoading ? '…' : (usdcNum + localUsdTotal).toFixed(2)
 
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
@@ -156,9 +180,14 @@ export default function Dashboard({ navigate, displayName }: DashboardProps) {
         <div className="px-4 mt-5">
           <div className="flex items-center justify-between mb-3">
             <h2 className="display text-base font-bold text-[var(--ink)]">My Assets</h2>
-            <button className="text-xs font-semibold" style={{ color: 'var(--accent)' }} onClick={() => navigate('swap')}>
-              Swap
-            </button>
+            <div className="flex items-center gap-3">
+              <button onClick={refreshLocal} className="text-xs font-semibold flex items-center gap-1" style={{ color: 'var(--muted)' }} aria-label="Refresh balances">
+                <RefreshCw size={12} /> Refresh
+              </button>
+              <button className="text-xs font-semibold" style={{ color: 'var(--accent)' }} onClick={() => navigate('swap')}>
+                Swap
+              </button>
+            </div>
           </div>
           <div className="space-y-2">
             {visible.map((t, i) => (

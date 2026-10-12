@@ -110,27 +110,58 @@ export function registerUser(opts: {
 }
 
 /**
- * Resolve a recipient string (wallet address, @username, or LP-XXXXXXXX account number)
+ * Resolve a recipient string (wallet address, @username, or LP-XXXXXXXX account number).
+ * Also checks the current session as a fallback so the logged-in user's own account number
+ * and username are always resolvable even before an explicit registry write.
  * Returns the matching RegistryEntry or null if not found.
  */
 export function resolveRecipient(input: string): RegistryEntry | null {
   const trimmed = input.trim()
   if (!trimmed) return null
+
+  // Build a combined lookup list: registry + current session (as a virtual entry)
   const registry = loadRegistry()
+  const allEntries = [...registry]
+
+  // Inject current session user if not already in registry
+  try {
+    // Try both session keys (v2 is the current one; v1 was used in older builds)
+    const sessionRaw = localStorage.getItem('limepay_session_v2') ?? localStorage.getItem('limepay_session')
+    if (sessionRaw) {
+      const session = JSON.parse(sessionRaw) as {
+        email?: string; displayName?: string; username?: string
+        accountNumber?: string; walletAddress?: string; verified?: boolean
+      }
+      if (session.email && session.accountNumber) {
+        const alreadyIn = registry.some((e) => e.email === session.email)
+        if (!alreadyIn) {
+          allEntries.push({
+            username: session.username ?? slugify(session.displayName ?? session.email.split('@')[0]),
+            accountNumber: session.accountNumber,
+            displayName: session.displayName ?? session.email.split('@')[0],
+            walletAddress: session.walletAddress ?? '',
+            email: session.email,
+            createdAt: Date.now(),
+          })
+        }
+      }
+    }
+  } catch { /* ignore */ }
 
   // Wallet address (0x...)
   if (trimmed.startsWith('0x')) {
-    return registry.find((e) => e.walletAddress.toLowerCase() === trimmed.toLowerCase()) ?? null
+    return allEntries.find((e) => e.walletAddress.toLowerCase() === trimmed.toLowerCase()) ?? null
   }
 
-  // Account number (LP-XXXXXXXX)
-  if (/^LP-\d{8}$/i.test(trimmed)) {
-    return registry.find((e) => e.accountNumber.toLowerCase() === trimmed.toLowerCase()) ?? null
+  // Account number (LP-XXXXXXXX) — match loosely, compare normalised
+  const normalised = trimmed.toUpperCase().replace(/\s/g, '')
+  if (/^LP-\d+$/i.test(normalised)) {
+    return allEntries.find((e) => e.accountNumber.toUpperCase() === normalised) ?? null
   }
 
   // Username (@name or plain name)
-  const slug = trimmed.startsWith('@') ? trimmed.slice(1).toLowerCase() : trimmed.toLowerCase()
-  return registry.find((e) => e.username.toLowerCase() === slug) ?? null
+  const slug = trimmed.startsWith('@') ? trimmed.slice(1).toLowerCase().trim() : trimmed.toLowerCase().trim()
+  return allEntries.find((e) => e.username.toLowerCase() === slug) ?? null
 }
 
 /**
@@ -144,4 +175,57 @@ export function lookupByEmail(email: string): RegistryEntry | null {
 /** Get all registry entries (for demo "address book" purposes) */
 export function getAllUsers(): RegistryEntry[] {
   return loadRegistry()
+}
+
+/**
+ * Read the current session from localStorage and ensure the user is in the registry.
+ * Safe to call on every load — idempotent.
+ */
+export function syncSessionToRegistry() {
+  try {
+    // Try both session keys (v2 is the current one; v1 was used in older builds)
+    const sessionRaw = localStorage.getItem('limepay_session_v2') ?? localStorage.getItem('limepay_session')
+    if (!sessionRaw) return
+    const session = JSON.parse(sessionRaw) as {
+      email?: string; displayName?: string; username?: string
+      accountNumber?: string; walletAddress?: string; verified?: boolean
+    }
+    if (!session.email || !session.verified) return
+    registerUser({
+      displayName: session.displayName ?? session.email.split('@')[0],
+      email: session.email,
+      walletAddress: session.walletAddress,
+      existingAccountNumber: session.accountNumber,
+      existingUsername: session.username,
+    })
+  } catch { /* ignore */ }
+}
+
+// ─── Demo seed ────────────────────────────────────────────────────────────────
+/**
+ * Pre-seed a handful of demo users so the username/account-number lookup works
+ * out of the box in a fresh browser session without needing a second real user.
+ * Safe to call on every load — it checks first and skips if they already exist.
+ */
+export function seedDemoUsers() {
+  const registry = loadRegistry()
+  const demoUsers: Omit<RegistryEntry, 'createdAt'>[] = [
+    { username: 'bulus_kure',  accountNumber: 'LP-10023456', displayName: 'Bulus Kure',    walletAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f8fA01', email: 'bulus@demo.limepay' },
+    { username: 'ada_obi',     accountNumber: 'LP-20034567', displayName: 'Ada Obi',        walletAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f8fA02', email: 'ada@demo.limepay' },
+    { username: 'emeka_j',     accountNumber: 'LP-30045678', displayName: 'Emeka Johnson',  walletAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f8fA03', email: 'emeka@demo.limepay' },
+    { username: 'fatima_s',    accountNumber: 'LP-40056789', displayName: 'Fatima Suleiman',walletAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f8fA04', email: 'fatima@demo.limepay' },
+    { username: 'tunde_a',     accountNumber: 'LP-50067890', displayName: 'Tunde Adeyemi',  walletAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f8fA05', email: 'tunde@demo.limepay' },
+  ]
+
+  let changed = false
+  for (const demo of demoUsers) {
+    const alreadyExists =
+      registry.some((e) => e.username === demo.username) ||
+      registry.some((e) => e.accountNumber === demo.accountNumber)
+    if (!alreadyExists) {
+      registry.push({ ...demo, createdAt: Date.now() })
+      changed = true
+    }
+  }
+  if (changed) saveRegistry(registry)
 }

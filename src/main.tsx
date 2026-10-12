@@ -22,7 +22,12 @@ import { Toaster } from 'sonner'
 import { config } from './config'
 import App from './App'
 import { TxStoreProvider } from './tx-store'
+import { seedDemoUsers, syncSessionToRegistry } from './user-registry'
 import './index.css'
+
+// Seed demo users and sync the current logged-in session into the registry on every load
+seedDemoUsers()
+syncSessionToRegistry()
 
 const queryClient = new QueryClient()
 

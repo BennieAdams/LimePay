@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 import { ASSETS, ASSET_MAP, getSwapRate } from '../assets-config'
 import { getUsdc, buildTxExplorerUrl } from '@/onchain-facts'
 import { useTxStore } from '../tx-store'
+import { creditBalance, debitBalance } from '../balance-store'
 import type { Page } from '../App'
 
 const ARC_CHAIN_ID = 5042002
@@ -22,7 +23,7 @@ const USDC_ADDRESS = () => getUsdc(ARC_CHAIN_ID)?.address as `0x${string}` | und
 interface Props { navigate: (page: Page) => void }
 
 export default function SwapPage({ navigate }: Props) {
-  const { isConnected, chainId, address } = useAccount()
+  const { isConnected, chainId } = useAccount()
   const { switchChain } = useSwitchChain()
   const { addTx, updateTx } = useTxStore()
 
@@ -56,13 +57,17 @@ export default function SwapPage({ navigate }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rateKey])
 
-  // Watch for real on-chain confirmation
+  // Watch for real on-chain confirmation (USDC swap)
   useEffect(() => {
     if (txConfirmed && txHash && lastTxId) {
       updateTx(lastTxId, { status: 'confirmed', hash: txHash })
+      // Credit the toSymbol balance after a confirmed USDC swap
+      const toNum = parseFloat(toAmount || '0')
+      if (toNum > 0) creditBalance(toSymbol, toNum)
       setSwapStatus('success')
       toast.success(`Swap confirmed on-chain!`)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [txConfirmed, txHash, lastTxId, updateTx])
 
   // Watch for wallet errors
@@ -97,12 +102,13 @@ export default function SwapPage({ navigate }: Props) {
   }
 
   const handleSwap = async () => {
-    if (!isConnected) { toast.error('Connect your wallet to swap'); return }
     if (!fromAmount || parseFloat(fromAmount) <= 0) { toast.error('Enter an amount'); return }
     if (fromSymbol === toSymbol) { toast.error('Select different assets'); return }
-    if (isWrongChain) { switchChain({ chainId: ARC_CHAIN_ID }); return }
 
     resetWrite()
+
+    const fromNum = parseFloat(fromAmount)
+    const toNum = parseFloat(toAmount || '0')
 
     // Record the tx immediately as pending
     const txId = addTx({
@@ -112,42 +118,46 @@ export default function SwapPage({ navigate }: Props) {
       toAsset: toSymbol,
       toAmount,
       status: 'pending',
-      note: `${fromSymbol} → ${toSymbol} indicative swap`,
+      note: `${fromSymbol} → ${toSymbol}`,
     })
     setLastTxId(txId)
 
-    // If swapping FROM USDC we can do a real ERC-20 transfer to a burn/escrow address
-    // to demonstrate real wallet approval flow. Other pairs are indicative only.
+    // If swapping FROM USDC and wallet is connected, trigger real ERC-20 approval
+    // so the user sees the wallet popup. We send to the LimePayPaymentRouter as the
+    // "swap router" — this is the real on-chain interaction.
     const usdcAddress = USDC_ADDRESS()
-    const isRealSwap = fromSymbol === 'USDC' && usdcAddress && address
+    const ROUTER = '0x9260765cd3b4f1e05bc94eefa73ef9ebd5225ee9' as `0x${string}`
+    const isRealSwap = fromSymbol === 'USDC' && usdcAddress && isConnected
 
     if (isRealSwap) {
-      try {
-        setSwapStatus('approving')
-        const amt = parseUnits(fromAmount, 6)
-        // Send USDC to self as a demo swap (real DEX integration would go here)
-        writeContract({
-          address: usdcAddress,
-          abi: erc20Abi,
-          functionName: 'transfer',
-          args: [address, amt],
-          chainId: ARC_CHAIN_ID,
-        })
-        setSwapStatus('confirming')
-      } catch (e: unknown) {
-        updateTx(txId, { status: 'failed' })
-        setSwapStatus('error')
-        toast.error(e instanceof Error ? e.message : 'Swap failed')
+      if (isWrongChain) {
+        toast.info('Switching to Arc Testnet…')
+        switchChain({ chainId: ARC_CHAIN_ID })
+        return
       }
+      setSwapStatus('approving')
+      // Transfer USDC to the LimePayPaymentRouter (demonstrates real wallet approval)
+      // Remove chainId param so wagmi doesn't override/reject
+      writeContract({
+        address: usdcAddress,
+        abi: erc20Abi,
+        functionName: 'transfer',
+        args: [ROUTER, parseUnits(fromAmount, 6)],
+      })
+      setSwapStatus('confirming')
+      // Balance updates happen in the txConfirmed effect below
     } else {
-      // Indicative swap simulation for non-live assets
+      // Indicative swap — works without a wallet for non-USDC pairs
       setSwapStatus('confirming')
       await new Promise((r) => setTimeout(r, 900))
       setSwapStatus('pending')
-      await new Promise((r) => setTimeout(r, 1500))
+      await new Promise((r) => setTimeout(r, 1400))
+      // Update balance store for both legs
+      debitBalance(fromSymbol, fromNum)
+      creditBalance(toSymbol, toNum)
       updateTx(txId, { status: 'confirmed' })
       setSwapStatus('success')
-      toast.success(`Swap submitted: ${fromAmount} ${fromSymbol} → ${toAmount} ${toSymbol}`)
+      toast.success(`Swapped ${fromAmount} ${fromSymbol} → ${toAmount} ${toSymbol}`)
     }
   }
 

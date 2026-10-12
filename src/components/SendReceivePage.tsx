@@ -8,11 +8,11 @@ import {
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchChain } from 'wagmi'
 import { erc20Abi, isAddress } from 'viem'
 import { getUsdc, buildTxExplorerUrl } from '@/onchain-facts'
-import { parseAmount } from '@/onchain-money'
 import { toast } from 'sonner'
 import { ASSETS, ASSET_MAP } from '../assets-config'
 import { useTxStore } from '../tx-store'
 import { resolveRecipient, type RegistryEntry } from '../user-registry'
+import { debitBalance } from '../balance-store'
 import type { Page } from '../App'
 
 const ARC_CHAIN_ID = 5042002
@@ -56,6 +56,8 @@ export default function SendReceivePage({ navigate, initialTab = 'send', account
   const [recipientError, setRecipientError] = useState('')
   const [amountError, setAmountError] = useState('')
   const [lastTxId, setLastTxId] = useState<string | null>(null)
+  const [indicativeSent, setIndicativeSent] = useState(false)
+  const [indicativeSending, setIndicativeSending] = useState(false)
 
   const selectedAsset = ASSET_MAP[selectedSymbol]
   const tokenAddress = getTokenAddress(selectedSymbol)
@@ -102,32 +104,60 @@ export default function SendReceivePage({ navigate, initialTab = 'send', account
   }
 
   // ─── Validation ───────────────────────────────────────────────────────────
-  const validate = (): { ok: boolean; effectiveAddress: string } => {
+  // Always tries to resolve inline if not yet resolved — no "Look up" required
+  const validate = (requireWallet = false): { ok: boolean; effectiveAddress: string } => {
     let ok = true
     let effectiveAddress = ''
 
     if (recipientMode === 'wallet') {
       if (!isAddress(recipient.trim())) {
-        setRecipientError('Enter a valid wallet address (0x…)')
+        setRecipientError('Enter a valid 0x wallet address')
         ok = false
       } else {
         setRecipientError('')
         effectiveAddress = recipient.trim()
       }
     } else {
-      if (resolveStatus !== 'found' || !resolvedEntry) {
-        setRecipientError(
-          resolveStatus === 'not_found'
-            ? 'No LimePay user found with that username or account number'
-            : 'Resolve the recipient first — click "Look up"',
-        )
-        ok = false
-      } else if (!resolvedEntry.walletAddress) {
-        setRecipientError('This user has not connected a wallet yet and cannot receive on-chain transfers')
+      const trimmed = recipient.trim()
+      if (!trimmed) {
+        setRecipientError('Enter a username or account number')
         ok = false
       } else {
-        setRecipientError('')
-        effectiveAddress = resolvedEntry.walletAddress
+        // Inline resolution — always try to resolve immediately on send
+        const entry = resolvedEntry ?? resolveRecipient(trimmed)
+        if (entry) {
+          setResolvedEntry(entry)
+          setResolveStatus('found')
+          if (requireWallet) {
+            // USDC send: MUST have a real 0x wallet address
+            if (!entry.walletAddress || !isAddress(entry.walletAddress)) {
+              setRecipientError(
+                `${entry.displayName} hasn't connected a wallet yet. Ask them to connect a wallet in LimePay, then try again.`
+              )
+              ok = false
+            } else {
+              setRecipientError('')
+              effectiveAddress = entry.walletAddress
+            }
+          } else {
+            // Non-USDC: wallet address optional — use it if present, otherwise just record by name
+            setRecipientError('')
+            effectiveAddress = entry.walletAddress && isAddress(entry.walletAddress)
+              ? entry.walletAddress
+              : entry.displayName  // label only, no on-chain tx
+          }
+        } else {
+          // Not in registry
+          if (requireWallet) {
+            setResolveStatus('not_found')
+            setRecipientError(`No LimePay user found for "${trimmed}". Check the account number or username and try again.`)
+            ok = false
+          } else {
+            // Non-USDC indicative: allow with raw input as label
+            setRecipientError('')
+            effectiveAddress = trimmed
+          }
+        }
       }
     }
 
@@ -144,46 +174,68 @@ export default function SendReceivePage({ navigate, initialTab = 'send', account
 
   // ─── Send ─────────────────────────────────────────────────────────────────
   const handleSend = () => {
-    if (!isConnected) { toast.error('Connect your wallet first'); return }
-    const { ok, effectiveAddress } = validate()
-    if (!ok) return
-    if (isWrongChain) { switchChain({ chainId: ARC_CHAIN_ID }); return }
-
-    const recipientLabel =
-      resolvedEntry
-        ? `${resolvedEntry.displayName} (${resolvedEntry.accountNumber})`
-        : effectiveAddress
-
+    // Non-USDC: indicative send — no wallet needed
     if (selectedSymbol !== 'USDC') {
-      const id = addTx({
-        type: 'send',
-        asset: selectedSymbol,
-        amount,
-        toAddress: effectiveAddress || recipient,
-        status: 'confirmed',
-        note: `Indicative send to ${recipientLabel}`,
-      })
-      setLastTxId(id)
-      toast.info(`${selectedSymbol} transfer is indicative on testnet.`)
+      const { ok, effectiveAddress } = validate(false)
+      if (!ok) return
+      setIndicativeSending(true)
+      setIndicativeSent(false)
+      const recipientLabel =
+        resolvedEntry
+          ? `${resolvedEntry.displayName} (${resolvedEntry.accountNumber})`
+          : effectiveAddress || recipient
+      const numAmt = parseFloat(amount)
+      setTimeout(() => {
+        debitBalance(selectedSymbol, isNaN(numAmt) ? 0 : numAmt)
+        addTx({
+          type: 'send',
+          asset: selectedSymbol,
+          amount,
+          toAddress: effectiveAddress || recipient,
+          status: 'confirmed',
+          note: `Send to ${recipientLabel}`,
+        })
+        setIndicativeSending(false)
+        setIndicativeSent(true)
+        toast.success(`${selectedSymbol} transfer recorded!`)
+      }, 1200)
       return
     }
 
-    if (!tokenAddress) { toast.error(`${selectedSymbol} contract not available`); return }
-
-    try {
-      const id = addTx({ type: 'send', asset: selectedSymbol, amount, toAddress: effectiveAddress, status: 'pending', note: `To ${recipientLabel}` })
-      setLastTxId(id)
-      const parsed = parseAmount(ARC_CHAIN_ID, amount)
-      writeContract({
-        address: tokenAddress as `0x${string}`,
-        abi: erc20Abi,
-        functionName: 'transfer',
-        args: [effectiveAddress as `0x${string}`, parsed.raw],
-        chainId: ARC_CHAIN_ID,
-      })
-    } catch (e: unknown) {
-      setAmountError(e instanceof Error ? e.message : 'Invalid amount')
+    // USDC: real on-chain transfer
+    if (!isConnected) { toast.error('Connect your wallet to send USDC'); return }
+    if (isWrongChain) {
+      toast.info('Switching to Arc Testnet…')
+      switchChain({ chainId: ARC_CHAIN_ID })
+      return
     }
+
+    const { ok, effectiveAddress } = validate(true)
+    if (!ok) return
+
+    if (!tokenAddress) { toast.error('USDC contract not available on Arc Testnet'); return }
+
+    // Parse USDC: 6 decimals ERC-20 on Arc
+    const num = parseFloat(amount)
+    if (isNaN(num) || num <= 0) { setAmountError('Invalid amount'); return }
+    // Use integer math to avoid float precision errors: multiply by 10^6
+    const rawAmount = BigInt(Math.round(num * 1_000_000))
+
+    const recipientLabel = resolvedEntry
+      ? `${resolvedEntry.displayName} (${resolvedEntry.accountNumber})`
+      : effectiveAddress
+
+    const id = addTx({ type: 'send', asset: 'USDC', amount, toAddress: effectiveAddress, status: 'pending', note: `To ${recipientLabel}` })
+    setLastTxId(id)
+    reset()
+    // Do NOT pass chainId here — let wagmi use the wallet's current chain.
+    // Passing chainId causes some wallets to reject the request entirely.
+    writeContract({
+      address: tokenAddress as `0x${string}`,
+      abi: erc20Abi,
+      functionName: 'transfer',
+      args: [effectiveAddress as `0x${string}`, rawAmount],
+    })
   }
 
   const copyToClipboard = (text: string, key: string) => {
@@ -215,7 +267,7 @@ export default function SendReceivePage({ navigate, initialTab = 'send', account
       <div className="relative z-10 px-5 md:px-10 mb-4">
         <div className="inline-flex p-1 rounded-2xl glass-card">
           {(['send', 'receive'] as Tab[]).map((t) => (
-            <button key={t} onClick={() => { setTab(t); reset() }}
+            <button key={t} onClick={() => { setTab(t); reset(); setIndicativeSent(false); setIndicativeSending(false) }}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-fast"
               style={tab === t ? { background: 'var(--accent)', color: 'white' } : { color: 'var(--muted)' }}>
               {t === 'send' ? <ArrowUpRight size={14} /> : <ArrowDownLeft size={14} />}
@@ -255,7 +307,7 @@ export default function SendReceivePage({ navigate, initialTab = 'send', account
                           style={{ background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(24px)', border: '1px solid var(--border)', top: '100%', marginTop: 6 }}>
                           <div className="max-h-60 overflow-y-auto">
                             {ASSETS.map((a) => (
-                              <button key={a.symbol} onClick={() => { setSelectedSymbol(a.symbol); setShowPicker(false); setAmount('') }}
+                              <button key={a.symbol} onClick={() => { setSelectedSymbol(a.symbol); setShowPicker(false); setAmount(''); setIndicativeSent(false) }}
                                 className="w-full flex items-center gap-3 px-4 py-3 hover:bg-green-50 transition-fast text-left">
                                 <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-bold text-xs" style={{ background: a.color }}>
                                   {a.symbol === 'cirBTC' ? 'BTC' : a.symbol.slice(0, 3)}
@@ -391,10 +443,26 @@ export default function SendReceivePage({ navigate, initialTab = 'send', account
 
                 {/* Status */}
                 <AnimatePresence>
+                  {/* Indicative success */}
+                  {indicativeSent && !isSuccess && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
+                      className="glass-card rounded-3xl p-5 flex items-center gap-3 border-2" style={{ borderColor: 'var(--success)' }}>
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(74,222,128,0.18)' }}>
+                        <Check size={18} style={{ color: 'var(--success)' }} />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-[var(--ink)]">Transfer sent!</p>
+                        <p className="text-xs text-[var(--muted)] mt-0.5">{selectedSymbol} · {amount} · Recorded in history</p>
+                      </div>
+                    </motion.div>
+                  )}
+                  {/* USDC on-chain success */}
                   {isSuccess && txHash && (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
                       className="glass-card rounded-3xl p-5 flex items-center gap-3 border-2" style={{ borderColor: 'var(--success)' }}>
-                      <Check size={18} style={{ color: 'var(--success)' }} />
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(74,222,128,0.18)' }}>
+                        <Check size={18} style={{ color: 'var(--success)' }} />
+                      </div>
                       <div className="flex-1">
                         <p className="text-sm font-semibold text-[var(--ink)]">Transfer confirmed!</p>
                         <a href={buildTxExplorerUrl(ARC_CHAIN_ID, txHash)} target="_blank" rel="noopener noreferrer"
@@ -404,24 +472,33 @@ export default function SendReceivePage({ navigate, initialTab = 'send', account
                       </div>
                     </motion.div>
                   )}
-                  {writeError && (
+                  {writeError && !writeError.message.toLowerCase().includes('user rejected') && !writeError.message.toLowerCase().includes('denied') && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                      className="glass-card rounded-3xl p-4 flex items-center gap-3 border-2" style={{ borderColor: 'var(--danger)' }}>
-                      <AlertCircle size={16} style={{ color: 'var(--danger)' }} />
-                      <p className="text-xs" style={{ color: 'var(--danger)' }}>
-                        {writeError.message.includes('user rejected') ? 'Transaction cancelled.' : 'Transaction failed. Try again.'}
-                      </p>
+                      className="glass-card rounded-3xl p-4 flex items-start gap-3 border-2" style={{ borderColor: 'var(--danger)' }}>
+                      <AlertCircle size={16} className="mt-0.5 flex-shrink-0" style={{ color: 'var(--danger)' }} />
+                      <div>
+                        <p className="text-xs font-semibold" style={{ color: 'var(--danger)' }}>
+                          {writeError.message.toLowerCase().includes('insufficient') ? 'Insufficient USDC ERC-20 balance' : 'Transfer failed'}
+                        </p>
+                        <p className="text-[10px] mt-1 leading-relaxed" style={{ color: 'var(--muted)' }}>
+                          {writeError.message.toLowerCase().includes('insufficient')
+                            ? 'Your wallet needs ERC-20 USDC (not just native gas USDC). Get test USDC from the Arc Testnet faucet using the "Get test USDC" button in the sidebar.'
+                            : writeError.message.slice(0, 120)}
+                        </p>
+                      </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
 
-                <button onClick={handleSend} disabled={isPending || isConfirming}
+                <button onClick={handleSend} disabled={isPending || isConfirming || indicativeSending}
                   className="w-full py-4 rounded-2xl font-bold text-white text-sm flex items-center justify-center gap-2 shadow-md shadow-green-200 transition-fast hover:scale-[1.01] active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
                   style={{ background: isWrongChain && isConnected ? '#f59e0b' : 'var(--accent)' }}>
-                  {!isConnected ? 'Connect wallet to send'
-                    : isWrongChain ? 'Switch to Arc Testnet'
+                  {indicativeSending ? <><Spinner /> Sending…</>
                     : isPending ? <><Spinner /> Confirm in wallet…</>
                     : isConfirming ? <><Spinner /> Confirming…</>
+                    : indicativeSent ? <><Check size={16} /> Sent! Send another</>
+                    : selectedSymbol === 'USDC' && !isConnected ? 'Connect wallet to send USDC'
+                    : selectedSymbol === 'USDC' && isWrongChain ? 'Switch to Arc Testnet'
                     : <><ArrowUpRight size={16} /> Send {selectedSymbol}</>}
                 </button>
               </motion.div>

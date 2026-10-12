@@ -6,6 +6,7 @@ import {
   Wifi, WifiOff, Edit2, X, AtSign, Hash,
 } from 'lucide-react'
 import { registerUser, lookupByEmail, type RegistryEntry } from './user-registry'
+import { useAccount } from 'wagmi'
 
 import LandingPage from './components/LandingPage'
 import AuthPage from './components/AuthPage'
@@ -50,6 +51,7 @@ interface Session {
   notifMarketing: boolean
   username: string
   accountNumber: string
+  walletAddress?: string
 }
 
 const DEFAULT_SESSION: Omit<Session, 'displayName' | 'email' | 'verified' | 'username' | 'accountNumber'> = {
@@ -108,11 +110,29 @@ export default function App() {
   const [activePage, setActivePage] = useState<Page>('dashboard')
 
   const displayName = session?.displayName ?? ''
+  const { address: connectedWallet } = useAccount()
 
   // Persist session changes
   useEffect(() => {
     if (session) saveSession(session)
   }, [session])
+
+  // Whenever the connected wallet changes, save it to the session + registry
+  // so account-number and username lookups can resolve to a real wallet address
+  useEffect(() => {
+    if (!connectedWallet || !session?.verified) return
+    const addr = connectedWallet.toLowerCase()
+    if (session.walletAddress?.toLowerCase() === addr) return  // no change
+    patchSession({ walletAddress: connectedWallet })
+    registerUser({
+      displayName: session.displayName,
+      email: session.email,
+      walletAddress: connectedWallet,
+      existingAccountNumber: session.accountNumber,
+      existingUsername: session.username,
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connectedWallet])
 
   const patchSession = (patch: Partial<Session>) => {
     setSessionState((prev) => {
